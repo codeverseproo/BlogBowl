@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2.2
+          bundler-cache: true
+
+      - name: Lint code for consistent style
+        run: bin/rubocop -f github
+
+  test:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # Use a Docker container to run the job
+    container: ruby:3.2.2
+
+    # Docker services to run alongside the job
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        # Options to wait for the service to be healthy
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:latest
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Environment variables available to all steps
+    env:
+      RAILS_ENV: test
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+
+    steps:
+      # 1. Check out repository code
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          submodules: true # Equivalent to GIT_SUBMODULE_STRATEGY: normal
+
+      # 4. Install system dependencies
+      - name: Install system dependencies
+        run: |
+          apt-get update -yqq
+          apt-get install -yqq --no-install-recommends nodejs npm postgresql-client libvips-dev
+
+      # 5. Install JavaScript dependencies (TipTap converter)
+      - name: Install JS dependencies
+        run: |
+          npm install -g bun
+          cd lib/tiptap && bun install --frozen-lockfile
+
+      # 6. Install Ruby gems
+      - name: Install Ruby gems
+        run: bundle install
+
+      # 6. Set up the database
+      - name: Set up database
+        run: RAILS_ENV=test rails db:create db:migrate
+
+      # 7. Run Rails tests
+      - name: Run tests
+        run: bundle exec rails test

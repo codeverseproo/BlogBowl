@@ -1,0 +1,83 @@
+<% content_for :title, "API Tokens" %>
+<div class="mx-auto max-w-3xl py-10">
+  <%= link_to settings_path do %>
+    <div class="flex gap-x-2 items-center text-sm opacity-70 cursor-pointer hover:opacity-50 active:opacity-40">
+      <i class="iconoir-arrow-left"></i>
+      <p>Back to settings</p>
+    </div>
+  <% end %>
+  <div class="flex justify-between mb-5 mt-2">
+    <div>
+      <h1 class="font-bold">API Tokens</h1>
+    </div>
+  </div>
+
+  <div class="alert alert-info alert-outline mb-6">
+    <i class="iconoir-book text-xl"></i>
+    <span>Learn how to use the BlogBowl API in our <%= link_to "documentation", "https://www.blogbowl.io/docs", target: "_blank", rel: "noopener noreferrer", class: "font-bold underline" %>.</span>
+  </div>
+
+  <%= render partial: 'shared/flashes' %>
+
+  <div class="mt-10 flex flex-col gap-y-10">
+
+    <div class="card card-border border-base-300 bg-white p-6">
+      <div class="">
+        <div class="flex items-center gap-x-2">
+          <i class="iconoir-key-alt-plus text-primary text-xl"></i>
+          <h3 class="font-bold">Create new token</h3>
+        </div>
+        <p class="opacity-70 mt-2">Generate a new API token for external integrations.</p>
+      </div>
+
+      <div class="mt-5">
+        <%= form_with model: [:settings, @workspace, APIToken.new], url: settings_api_tokens_path do |form| %>
+          <div class="flex items-center gap-x-4">
+            <%= form.text_field :name, placeholder: "Token name", class: "w-full text-sm" %>
+            <%= form.submit "Create API Token", class: "btn btn-primary" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <% unless @api_tokens.empty? %>
+      <div class="card card-border border-base-300 bg-white p-6">
+        <div class="">
+          <div class="flex items-center gap-x-2">
+            <i class="iconoir-lock-square text-primary text-xl"></i>
+            <h3 class="font-bold">Existing tokens</h3>
+          </div>
+          <p class="opacity-70 mt-2">Manage your existing API tokens.</p>
+        </div>
+
+        <div class="mt-5 overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th class="text-sm font-semibold">Name</th>
+                <th class="text-sm font-semibold">Token</th>
+                <th class="text-sm font-semibold">Last Used</th>
+                <th class="text-sm font-semibold">Expires At</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @api_tokens.each do |api_token| %>
+                <tr>
+                  <td class="text-sm font-medium"><%= api_token.name %></td>
+                  <td class="text-sm opacity-70 font-mono text-xs"><%= api_token.token %></td>
+                  <td class="text-sm opacity-70"><%= api_token.last_used_at&.to_formatted_s(:short) || 'Never' %></td>
+                  <td class="text-sm opacity-70"><%= api_token.expires_at&.to_formatted_s(:short) || 'Never' %></td>
+                  <td class="text-right">
+                    <%= link_to "Delete", settings_api_token_path(api_token), data: { turbo_method: :delete, turbo_confirm: "Are you sure you want to delete this API token?" }, class: "text-sm text-error hover:opacity-70" %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+  </div>
+</div>

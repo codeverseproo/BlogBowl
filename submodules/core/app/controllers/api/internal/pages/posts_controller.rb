@@ -1,0 +1,107 @@
+class API::Internal::Pages::PostsController < API::Internal::Pages::ApplicationController
+  before_action :set_post, only: %i[show publish update unschedule]
+
+  # Lightweight list used by the editor's redirect picker. Access to the page
+  # is already enforced by set_page, and like #show it needs no per-post check.
+  def index
+    posts = @page.posts.order(updated_at: :desc)
+    posts = posts.where.not(id: params[:exclude_id]) if params[:exclude_id].present?
+    posts = posts.where("title ILIKE ?", "%#{params[:q].to_s.strip}%") if params[:q].present?
+
+    render json: posts.limit(50).map { _1.slice(:id, :title, :slug, :status) }
+  end
+
+  def create
+    @post = @page.posts.build(post_params)
+    authorize! :create, @post
+
+    if @post.save
+      render json: @post, status: :created
+    else
+      render json: { errors: @post.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    authorize! :edit, @post
+
+    params = post_params
+    unless params[:author_ids].nil?
+      @post.post_authors = @post.post_authors.reject { _1.role == "author" }
+      @post.post_authors << params[:author_ids].map { PostAuthor.build(post: @post, author_id: _1, role: "author") }
+      params.delete(:author_ids)
+    end
+    unless params[:reviewer_ids].nil?
+      @post.post_authors = @post.post_authors.reject { _1.role == "reviewer" }
+      @post.post_authors << params[:reviewer_ids].map { PostAuthor.build(post: @post, author_id: _1, role: "reviewer") }
+      params.delete(:reviewer_ids)
+    end
+
+    if @post.update(params)
+      render json: @post, status: :ok
+    else
+      render json: { error: @post.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def publish
+    authorize! :edit, @post
+
+    if @post.authors.empty?
+      render json: { error: "At least 1 author should be set" }, status: :unprocessable_entity
+      return
+    end
+
+    if params[:scheduled_at].present?
+      scheduled_time = Time.parse(params[:scheduled_at]).utc
+
+      if scheduled_time.past?
+        render json: { error: "Schedule date must be in future" }, status: :unprocessable_entity
+        return
+      end
+
+      @post.update(scheduled_at: params[:scheduled_at], status: :scheduled)
+      job = PublishPostJob.set(wait_until: scheduled_time).perform_later(@post.id)
+      @post.update(job_id: job.job_id)
+    else
+      @post.publish!
+    end
+    render json: @post
+  end
+
+  def unschedule
+    authorize! :edit, @post
+    unless @post.scheduled?
+      render json: { error: "Post should be scheduled for unscheduling" }, status: :unprocessable_entity
+      return
+    end
+    if @post.job_id.nil?
+      render json: { error: "Post should have job id" }, status: :unprocessable_entity
+      return
+    end
+
+    Sidekiq::ScheduledSet.new.find_job(@post.job_id)&.delete
+    @post.update(job_id: nil, status: "draft", scheduled_at: nil)
+
+    render json: @post, status: :ok
+  end
+
+  def show
+    render json: @post
+  end
+
+  private
+
+  def current_ability
+    @current_ability ||= PostAbility.new(current_user)
+  end
+
+  def set_post
+    @post = @page.posts.find_by(id: params[:post_id] || params[:id])
+    render json: { error: "Post not found" }, status: :not_found if @post.nil?
+  end
+
+  def post_params
+    params.permit(:title, :slug, :content_html, :category_id, :seo_title, :seo_description, :cover_image, :sharing_image, :description, :og_title, :og_description, :redirect_url, :redirect_post_id, content_json: {}, reviewer_ids: [], author_ids: [], faq_answers: [ :question, :answer ])
+  end
+end

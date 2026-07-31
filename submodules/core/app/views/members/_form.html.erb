@@ -1,0 +1,80 @@
+<div class="mx-auto max-w-3xl py-10">
+  <%= form_tag(is_new ? members_path : member_path(member), method: is_new ? :post : :patch, "data-controller": "members", "data-members-is-owner-value": member&.owner?) do %>
+    <%= link_to authors_path do %>
+      <div class="flex gap-x-2 items-center text-sm opacity-70 cursor-pointer hover:opacity-50 active:opacity-40">
+        <i class="iconoir-arrow-left"></i>
+        <p>Back to authors</p>
+      </div>
+    <% end %>
+    <div class="flex justify-between mb-5 mt-2">
+      <div>
+        <h1 class="font-bold"><%= is_new ? "Create member" : "Edit member #{@member.formatted_name}" %></h1>
+      </div>
+      <%= submit_tag is_new ? "Create new member" : "Save changes", class: "btn btn-primary" %>
+    </div>
+
+    <%= render partial: 'shared/flashes' %>
+
+    <div class="mt-10 flex flex-col gap-y-10">
+
+      <div class="card card-border border-base-300 bg-white p-6">
+        <div class="">
+          <div class="flex items-center gap-x-2">
+            <i class="iconoir-globe text-primary text-xl"></i>
+            <h3 class="font-bold">Login Credentials</h3>
+          </div>
+          <p class="opacity-70 mt-2">Enter email and password which will be used to login to BlogBowl app.</p>
+        </div>
+
+        <div class="flex flex-col gap-y-4 mt-5">
+          <div>
+            <div class="flex justify-between">
+              <%= label_tag :email, "Email", class: "block text-sm font-medium mb-1" %>
+            </div>
+            <%= text_field_tag :email, is_new ? "" : member.user.email, class: "w-full" %>
+          </div>
+          <div>
+            <div class="flex justify-between">
+              <%= label_tag :password, "New Password", class: "block text-sm font-medium mb-1" %>
+            </div>
+            <%= password_field_tag :password, "", class: "w-full", placeholder: is_new ? "" : "Leave blank to keep unchanged", autocomplete: "new-password" %>
+          </div>
+          <div>
+            <div class="flex justify-between">
+              <%= label_tag :password_confirmation, "Confirm New Password", class: "block text-sm font-medium mb-1" %>
+            </div>
+            <%= password_field_tag :password_confirmation, "", class: "w-full", autocomplete: "new-password" %>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="card card-border border-base-300 bg-white">
+        <div class="p-6">
+          <div class="flex items-center gap-x-2">
+            <i class="iconoir-globe text-primary text-xl"></i>
+            <h3 class="font-bold">Permissions</h3>
+          </div>
+          <p class="opacity-70 mt-2">Assign a role and set content permissions for the member.</p>
+        </div>
+        <div class="flex justify-between items-center border-y px-6 py-6">
+          <div>
+            <%= label_tag :posts_has_own_author, "Has own author", class: "block text-sm font-medium mb-1" %>
+            <p class="text-xs text-gray-400">When enabled, we'll automatically create Author for the user.</p>
+          </div>
+
+          <%= check_box_tag :posts_has_own_author, true, is_new || member&.posts_owns_author?, class: "toggle toggle-xl toggle-primary checked:bg-primary checked:text-white checked:border-primary", "data-members-target": "postsHasOwnAuthor", "data-action": "change->members#onPostsHasAuthorChange", disabled: member&.owner? %>
+        </div>
+        <div class="flex flex-col gap-y-4 p-6">
+          <div>
+            <div class="flex justify-between">
+              <%= label_tag :posts_role, "Role", class: "block text-sm font-medium mb-1" %>
+            </div>
+            <%= hidden_field_tag :posts_role, member&.posts_role, "data-members-target": "postsRolesHidden" %>
+            <%= select_tag :posts_role, options_for_select([%w[Owner owner], %w[Editor editor], %w[Writer writer], member&.owner? ? %w[Owner owner] : nil].compact, member&.posts_role), class: "select select-bordered w-full", disabled: !member&.posts_owns_author? || member&.owner?, "data-members-target": "postsRoles", "data-action": "change->members#onPostsRoleChange" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

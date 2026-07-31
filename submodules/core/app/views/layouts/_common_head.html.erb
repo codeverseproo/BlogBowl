@@ -1,0 +1,27 @@
+<% is_editor ||= false %>
+<head>
+  <title><%= (yield(:title) + " | " unless yield(:title).blank?).to_s + "BlogBowl" %></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <%= action_cable_meta_tag %>
+  <%# Check https://github.com/kirillplatonov/hotwire-livereload/issues/49 %>
+  <%= hotwire_livereload_tags if Rails.env.development? %>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+
+  <% if is_editor&.present? or is_editor %>
+    <%= stylesheet_link_tag "editor/editor", "data-turbo-track": Rails.env.production? ? "reload" : "reload" %>
+  <% else %>
+    <%= stylesheet_link_tag "application", "data-turbo-track": Rails.env.production? ? "reload" : "reload" %>
+  <% end %>
+  <%= javascript_include_tag "submodules/core/javascript/application", "data-turbo-track": Rails.env.production? ? "reload" : "", type: "module" %>
+  <%= javascript_include_tag "app/javascript/application", "data-turbo-track": Rails.env.production? ? "reload" : "", type: "module" %>
+
+  <%= stylesheet_link_tag "https://cdn.jsdelivr.net/gh/iconoir-icons/iconoir@main/css/iconoir.css", "data-turbo": "false" %>
+  <%= favicon_link_tag unless Rails.env.development? %>
+  <script>
+      window.cfg = {
+          host: "<%= ENV.fetch('FRONTEND_URL', Rails.application.credentials.dig(Rails.env.to_sym, :fronted_url)) %>"
+      };
+  </script>
+</head>
