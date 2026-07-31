@@ -77,3 +77,5 @@ gem 'postmark'
 gem 'non-stupid-digest-assets'
 
 gem 'babosa'
+
+gem 'aws-sdk-s3', require: false
